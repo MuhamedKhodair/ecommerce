@@ -1,0 +1,179 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { api } from '@/utils/api'
+import Image from 'next/image'
+
+export default function AdminProducts() {
+  const [products, setProducts] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [showForm, setShowForm] = useState(false)
+  const [editing, setEditing] = useState(null)
+  const [form, setForm] = useState({ name: '', description: '', price: '', category: '', stock: '', image: '' })
+  const [error, setError] = useState('')
+  const [search, setSearch] = useState('')
+
+  const loadProducts = async () => {
+    setLoading(true)
+    try {
+      const data = await api.getAdminProducts({ search })
+      setProducts(data.products)
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { loadProducts() }, [search])
+
+  const resetForm = () => {
+    setForm({ name: '', description: '', price: '', category: '', stock: '', image: '' })
+    setEditing(null)
+    setShowForm(false)
+    setError('')
+  }
+
+  const handleEdit = (product) => {
+    setForm({
+      name: product.name,
+      description: product.description,
+      price: String(product.price),
+      category: product.category,
+      stock: String(product.stock),
+      image: product.image || '',
+    })
+    setEditing(product.id)
+    setShowForm(true)
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setError('')
+    try {
+      const payload = {
+        ...form,
+        price: parseFloat(form.price),
+        stock: parseInt(form.stock) || 0,
+      }
+      if (editing) {
+        await api.updateProduct(editing, payload)
+      } else {
+        await api.createProduct(payload)
+      }
+      resetForm()
+      loadProducts()
+    } catch (e) {
+      setError(e.message)
+    }
+  }
+
+  const handleDelete = async (id) => {
+    if (!confirm('Are you sure you want to delete this product?')) return
+    try {
+      await api.deleteProduct(id)
+      loadProducts()
+    } catch (e) {
+      setError(e.message)
+    }
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Products</h1>
+          <p className="mt-1 text-sm text-gray-500">Manage your product catalog</p>
+        </div>
+        <button onClick={() => { resetForm(); setShowForm(true) }} className="btn-primary">
+          Add Product
+        </button>
+      </div>
+
+      <input
+        type="text"
+        placeholder="Search products..."
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+        className="input-field mt-4 max-w-md"
+      />
+
+      {error && (
+        <div className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+      )}
+
+      {showForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
+            <h2 className="text-lg font-semibold text-gray-900">{editing ? 'Edit Product' : 'Add Product'}</h2>
+            <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+              <input className="input-field" placeholder="Name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
+              <textarea className="input-field" placeholder="Description" rows={3} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} required />
+              <div className="grid grid-cols-2 gap-4">
+                <input className="input-field" type="number" step="0.01" min="0.01" placeholder="Price" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} required />
+                <input className="input-field" type="number" min="0" placeholder="Stock" value={form.stock} onChange={e => setForm({ ...form, stock: e.target.value })} />
+              </div>
+              <input className="input-field" placeholder="Category" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} required />
+              <input className="input-field" placeholder="Image URL" value={form.image} onChange={e => setForm({ ...form, image: e.target.value })} />
+              <div className="flex gap-3">
+                <button type="submit" className="btn-primary flex-1">{editing ? 'Update' : 'Create'}</button>
+                <button type="button" onClick={resetForm} className="btn-outline flex-1">Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="mt-8 flex justify-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-gray-900" />
+        </div>
+      ) : products.length === 0 ? (
+        <p className="mt-8 text-center text-gray-500">No products found.</p>
+      ) : (
+        <div className="mt-6 overflow-hidden rounded-2xl border border-gray-100">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-3 font-medium text-gray-500">Product</th>
+                <th className="px-4 py-3 font-medium text-gray-500">Category</th>
+                <th className="px-4 py-3 font-medium text-gray-500">Price</th>
+                <th className="px-4 py-3 font-medium text-gray-500">Stock</th>
+                <th className="px-4 py-3 font-medium text-gray-500">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {products.map(product => (
+                <tr key={product.id} className="hover:bg-gray-50">
+                  <td className="flex items-center gap-3 px-4 py-3">
+                    <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-gray-100">
+                      <Image src={product.image || '/placeholder.png'} alt="" fill className="object-cover" />
+                    </div>
+                    <span className="font-medium text-gray-900">{product.name}</span>
+                  </td>
+                  <td className="px-4 py-3 text-gray-600">{product.category}</td>
+                  <td className="px-4 py-3 text-gray-900">${product.price.toFixed(2)}</td>
+                  <td className="px-4 py-3">
+                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                      product.stock === 0 ? 'bg-red-100 text-red-700' :
+                      product.stock <= 5 ? 'bg-amber-100 text-amber-700' :
+                      'bg-green-100 text-green-700'
+                    }`}>
+                      {product.stock}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex gap-2">
+                      <button onClick={() => handleEdit(product)} className="rounded-lg px-3 py-1.5 text-xs font-medium text-gray-600 transition hover:bg-gray-100">Edit</button>
+                      <button onClick={() => handleDelete(product.id)} className="rounded-lg px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50">Delete</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}

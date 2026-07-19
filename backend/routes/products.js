@@ -1,0 +1,113 @@
+const express = require('express')
+const { body, validationResult } = require('express-validator')
+const prisma = require('../config/prisma')
+const { auth, admin } = require('../middleware/auth')
+
+const router = express.Router()
+
+router.get('/', async (req, res) => {
+  try {
+    const { search, category, limit = 50, page = 1 } = req.query
+    const where = {}
+
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+      ]
+    }
+    if (category) where.category = category
+
+    const skip = (parseInt(page) - 1) * parseInt(limit)
+    const [products, total] = await Promise.all([
+      prisma.product.findMany({
+        where,
+        skip,
+        take: Math.min(parseInt(limit), 100),
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.product.count({ where }),
+    ])
+
+    res.json({
+      products,
+      total,
+      page: parseInt(page),
+      pages: Math.ceil(total / parseInt(limit)),
+    })
+  } catch (error) {
+    res.status(500).json({ message: error.message })
+  }
+})
+
+router.get('/:id', async (req, res) => {
+  try {
+    const product = await prisma.product.findUnique({ where: { id: req.params.id } })
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found' })
+    }
+    res.json(product)
+  } catch (error) {
+    res.status(500).json({ message: error.message })
+  }
+})
+
+router.post('/', auth, admin, [
+  body('name').trim().notEmpty().withMessage('Name is required').isLength({ max: 200 }),
+  body('description').trim().notEmpty().withMessage('Description is required'),
+  body('price').isFloat({ min: 0.01 }).withMessage('Price must be greater than 0'),
+  body('category').trim().notEmpty().withMessage('Category is required'),
+  body('stock').optional().isInt({ min: 0 }).withMessage('Stock must be a non-negative integer'),
+  body('image').optional().trim().isURL().withMessage('Image must be a valid URL'),
+], async (req, res) => {
+  try {
+    const errors = validationResult(req)
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ message: errors.array()[0].msg })
+    }
+    const product = await prisma.product.create({ data: req.body })
+    res.status(201).json(product)
+  } catch (error) {
+    res.status(400).json({ message: error.message })
+  }
+})
+
+router.put('/:id', auth, admin, [
+  body('name').optional().trim().notEmpty().isLength({ max: 200 }),
+  body('description').optional().trim().notEmpty(),
+  body('price').optional().isFloat({ min: 0.01 }),
+  body('category').optional().trim().notEmpty(),
+  body('stock').optional().isInt({ min: 0 }),
+  body('image').optional().trim().isURL(),
+], async (req, res) => {
+  try {
+    const errors = validationResult(req)
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ message: errors.array()[0].msg })
+    }
+    const product = await prisma.product.update({
+      where: { id: req.params.id },
+      data: req.body,
+    })
+    res.json(product)
+  } catch (error) {
+    if (error.code === 'P2025') {
+      return res.status(404).json({ message: 'Product not found' })
+    }
+    res.status(400).json({ message: error.message })
+  }
+})
+
+router.delete('/:id', auth, admin, async (req, res) => {
+  try {
+    await prisma.product.delete({ where: { id: req.params.id } })
+    res.json({ message: 'Product deleted' })
+  } catch (error) {
+    if (error.code === 'P2025') {
+      return res.status(404).json({ message: 'Product not found' })
+    }
+    res.status(500).json({ message: error.message })
+  }
+})
+
+module.exports = router
