@@ -50,6 +50,7 @@ export const api = {
     const query = new URLSearchParams(params).toString()
     return request(`/api/admin/products${query ? `?${query}` : ''}`)
   },
+  getAdminCategories: () => request('/api/admin/categories'),
   uploadImage: file => {
     const formData = new FormData()
     formData.append('image', file)
