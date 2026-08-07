@@ -3,8 +3,11 @@ const { body, validationResult } = require('express-validator')
 const prisma = require('../config/prisma')
 const { auth, admin } = require('../middleware/auth')
 const { sendError } = require('../utils/errors')
+const { isUploadedImage, deleteUploadedImage } = require('../utils/uploads')
 
 const router = express.Router()
+
+const isValidImage = value => !value || /^https?:\/\/.+/i.test(value) || isUploadedImage(value)
 
 router.get('/', async (req, res) => {
   try {
@@ -59,7 +62,7 @@ router.post('/', auth, admin, [
   body('price').isFloat({ min: 0.01 }).withMessage('Price must be greater than 0'),
   body('category').trim().notEmpty().withMessage('Category is required'),
   body('stock').optional().isInt({ min: 0 }).withMessage('Stock must be a non-negative integer'),
-  body('image').optional().trim().isURL().withMessage('Image must be a valid URL'),
+  body('image').optional().trim().custom(isValidImage).withMessage('Image must be a valid URL or upload'),
 ], async (req, res) => {
   try {
     const errors = validationResult(req)
@@ -79,17 +82,24 @@ router.put('/:id', auth, admin, [
   body('price').optional().isFloat({ min: 0.01 }),
   body('category').optional().trim().notEmpty(),
   body('stock').optional().isInt({ min: 0 }),
-  body('image').optional().trim().isURL(),
+  body('image').optional().trim().custom(isValidImage).withMessage('Image must be a valid URL or upload'),
 ], async (req, res) => {
   try {
     const errors = validationResult(req)
     if (!errors.isEmpty()) {
       return res.status(400).json({ message: errors.array()[0].msg })
     }
+    const current = await prisma.product.findUnique({ where: { id: req.params.id } })
+    if (!current) {
+      return res.status(404).json({ message: 'Product not found' })
+    }
     const product = await prisma.product.update({
       where: { id: req.params.id },
       data: req.body,
     })
+    if (req.body.image && req.body.image !== current.image) {
+      deleteUploadedImage(current.image)
+    }
     res.json(product)
   } catch (error) {
     if (error.code === 'P2025') {
@@ -101,7 +111,12 @@ router.put('/:id', auth, admin, [
 
 router.delete('/:id', auth, admin, async (req, res) => {
   try {
+    const product = await prisma.product.findUnique({ where: { id: req.params.id } })
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found' })
+    }
     await prisma.product.delete({ where: { id: req.params.id } })
+    deleteUploadedImage(product.image)
     res.json({ message: 'Product deleted' })
   } catch (error) {
     if (error.code === 'P2025') {

@@ -12,6 +12,7 @@ export default function AdminProducts() {
   const [form, setForm] = useState({ name: '', description: '', price: '', category: '', stock: '', image: '' })
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
+  const [uploading, setUploading] = useState(false)
 
   const loadProducts = async () => {
     setLoading(true)
@@ -32,6 +33,7 @@ export default function AdminProducts() {
     setEditing(null)
     setShowForm(false)
     setError('')
+    setUploading(false)
   }
 
   const handleEdit = (product) => {
@@ -78,6 +80,21 @@ export default function AdminProducts() {
     }
   }
 
+  const handleFile = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    setError('')
+    setUploading(true)
+    try {
+      const { url } = await api.uploadImage(file)
+      setForm(f => ({ ...f, image: url }))
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setUploading(false)
+    }
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between">
@@ -114,7 +131,32 @@ export default function AdminProducts() {
                 <input className="input-field" type="number" min="0" placeholder="Stock" value={form.stock} onChange={e => setForm({ ...form, stock: e.target.value })} />
               </div>
               <input className="input-field" placeholder="Category" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} required />
-              <input className="input-field" placeholder="Image URL" value={form.image} onChange={e => setForm({ ...form, image: e.target.value })} />
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">Product Image</label>
+                {form.image ? (
+                  <div className="flex items-center gap-3">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={form.image} alt="Product preview" className="h-16 w-16 rounded-lg object-cover" />
+                    <div className="space-y-1">
+                      <p className="text-xs text-gray-500">Image uploaded</p>
+                      <button type="button" onClick={() => setForm(f => ({ ...f, image: '' }))} className="text-xs font-medium text-red-600 hover:underline">
+                        Remove image
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <label className="block cursor-pointer rounded-xl border-2 border-dashed border-gray-300 px-4 py-4 text-center text-sm text-gray-500 transition hover:border-gray-400 hover:text-gray-700">
+                    {uploading ? 'Uploading...' : 'Click to upload an image'}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      onChange={handleFile}
+                      disabled={uploading}
+                      className="hidden"
+                    />
+                  </label>
+                )}
+              </div>
               <div className="flex gap-3">
                 <button type="submit" className="btn-primary flex-1">{editing ? 'Update' : 'Create'}</button>
                 <button type="button" onClick={resetForm} className="btn-outline flex-1">Cancel</button>

@@ -11,6 +11,8 @@ const productRoutes = require('./routes/products')
 const cartRoutes = require('./routes/cart')
 const orderRoutes = require('./routes/orders')
 const adminRoutes = require('./routes/admin')
+const uploadRoutes = require('./routes/upload')
+const { UPLOAD_DIR } = require('./utils/uploads')
 
 const app = express()
 
@@ -34,6 +36,12 @@ app.use((req, res, next) => {
   next()
 })
 
+app.use('/uploads', (req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff')
+  res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+  next()
+}, express.static(UPLOAD_DIR, { dotfiles: 'deny', index: false }))
+
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 200,
@@ -55,6 +63,7 @@ app.use('/api/products', productRoutes)
 app.use('/api/cart', cartRoutes)
 app.use('/api/orders', orderRoutes)
 app.use('/api/admin', adminRoutes)
+app.use('/api/upload', uploadRoutes)
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() })

@@ -1,11 +1,14 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
 
 async function request(endpoint, options = {}) {
+  const headers = {
+    ...options.headers,
+  }
+  if (!(options.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json'
+  }
   const res = await fetch(`${API_BASE}${endpoint}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
+    headers,
     credentials: 'include',
     ...options,
   })
@@ -44,5 +47,10 @@ export const api = {
   getAdminProducts: (params = {}) => {
     const query = new URLSearchParams(params).toString()
     return request(`/api/admin/products${query ? `?${query}` : ''}`)
+  },
+  uploadImage: file => {
+    const formData = new FormData()
+    formData.append('image', file)
+    return request('/api/upload', { method: 'POST', body: formData })
   },
 }
