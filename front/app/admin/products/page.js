@@ -13,6 +13,18 @@ export default function AdminProducts() {
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
   const [uploading, setUploading] = useState(false)
+  const [categories, setCategories] = useState([])
+
+  const loadCategories = async () => {
+    try {
+      const data = await api.getAdminCategories()
+      setCategories(data)
+    } catch (e) {
+      // non-fatal; form falls back to text input
+    }
+  }
+
+  useEffect(() => { loadCategories() }, [])
 
   const loadProducts = async () => {
     setLoading(true)
@@ -95,6 +107,8 @@ export default function AdminProducts() {
     }
   }
 
+  const categoryOptions = Array.from(new Set([...categories, form.category].filter(Boolean)))
+
   return (
     <div>
       <div className="flex items-center justify-between">
@@ -130,7 +144,21 @@ export default function AdminProducts() {
                 <input className="input-field" type="number" step="0.01" min="0.01" placeholder="Price" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} required />
                 <input className="input-field" type="number" min="0" placeholder="Stock" value={form.stock} onChange={e => setForm({ ...form, stock: e.target.value })} />
               </div>
-              <input className="input-field" placeholder="Category" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} required />
+              {categories.length > 0 ? (
+                <select
+                  className="input-field"
+                  value={form.category}
+                  onChange={e => setForm({ ...form, category: e.target.value })}
+                  required
+                >
+                  <option value="" disabled>Select a category</option>
+                  {categoryOptions.map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              ) : (
+                <input className="input-field" placeholder="Category" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} required />
+              )}
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-gray-700">Product Image</label>
                 {form.image ? (
