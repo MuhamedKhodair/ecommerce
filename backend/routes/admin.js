@@ -2,6 +2,7 @@ const express = require('express')
 const { body, validationResult } = require('express-validator')
 const prisma = require('../config/prisma')
 const { auth, admin } = require('../middleware/auth')
+const { sendError } = require('../utils/errors')
 
 const router = express.Router()
 
@@ -41,7 +42,7 @@ router.get('/stats', async (req, res) => {
       lowStockProducts,
     })
   } catch (error) {
-    res.status(500).json({ message: error.message })
+    return sendError(res, 'GET /admin/stats', error)
   }
 })
 
@@ -51,8 +52,8 @@ router.get('/users', async (req, res) => {
     const where = {}
     if (search) {
       where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { email: { contains: search, mode: 'insensitive' } },
+        { name: { contains: search } },
+        { email: { contains: search } },
       ]
     }
     const skip = (parseInt(page) - 1) * parseInt(limit)
@@ -68,7 +69,7 @@ router.get('/users', async (req, res) => {
     ])
     res.json({ users, total, page: parseInt(page), pages: Math.ceil(total / parseInt(limit)) })
   } catch (error) {
-    res.status(500).json({ message: error.message })
+    return sendError(res, 'GET /admin/users', error)
   }
 })
 
@@ -81,7 +82,7 @@ router.get('/users/:id', async (req, res) => {
     if (!user) return res.status(404).json({ message: 'User not found' })
     res.json(user)
   } catch (error) {
-    res.status(500).json({ message: error.message })
+    return sendError(res, 'GET /admin/users/:id', error)
   }
 })
 
@@ -109,7 +110,7 @@ router.put('/users/:id/role', [
     res.json(user)
   } catch (error) {
     if (error.code === 'P2025') return res.status(404).json({ message: 'User not found' })
-    res.status(500).json({ message: error.message })
+    return sendError(res, 'PUT /admin/users/:id/role', error)
   }
 })
 
@@ -122,7 +123,7 @@ router.delete('/users/:id', async (req, res) => {
     res.json({ message: 'User deleted' })
   } catch (error) {
     if (error.code === 'P2025') return res.status(404).json({ message: 'User not found' })
-    res.status(500).json({ message: error.message })
+    return sendError(res, 'DELETE /admin/users/:id', error)
   }
 })
 
@@ -150,7 +151,7 @@ router.get('/orders', async (req, res) => {
     }))
     res.json({ orders: parsed, total, page: parseInt(page), pages: Math.ceil(total / parseInt(limit)) })
   } catch (error) {
-    res.status(500).json({ message: error.message })
+    return sendError(res, 'GET /admin/orders', error)
   }
 })
 
@@ -170,7 +171,7 @@ router.put('/orders/:id/status', [
     res.json(order)
   } catch (error) {
     if (error.code === 'P2025') return res.status(404).json({ message: 'Order not found' })
-    res.status(500).json({ message: error.message })
+    return sendError(res, 'PUT /admin/orders/:id/status', error)
   }
 })
 
@@ -180,8 +181,8 @@ router.get('/products', async (req, res) => {
     const where = {}
     if (search) {
       where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } },
+        { name: { contains: search } },
+        { description: { contains: search } },
       ]
     }
     if (category) where.category = category
@@ -195,7 +196,7 @@ router.get('/products', async (req, res) => {
     ])
     res.json({ products, total, page: parseInt(page), pages: Math.ceil(total / parseInt(limit)) })
   } catch (error) {
-    res.status(500).json({ message: error.message })
+    return sendError(res, 'GET /admin/products', error)
   }
 })
 
@@ -207,7 +208,7 @@ router.get('/categories', async (req, res) => {
     })
     res.json(products.map(p => p.category))
   } catch (error) {
-    res.status(500).json({ message: error.message })
+    return sendError(res, 'GET /admin/categories', error)
   }
 })
 

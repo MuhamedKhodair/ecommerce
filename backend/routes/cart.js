@@ -1,6 +1,7 @@
 const express = require('express')
 const prisma = require('../config/prisma')
 const { auth } = require('../middleware/auth')
+const { sendError } = require('../utils/errors')
 
 const router = express.Router()
 
@@ -12,7 +13,7 @@ router.get('/', auth, async (req, res) => {
     })
     res.json(cart || { items: [] })
   } catch (error) {
-    res.status(500).json({ message: error.message })
+    return sendError(res, 'GET /cart', error)
   }
 })
 
@@ -55,7 +56,7 @@ router.post('/', auth, async (req, res) => {
 
     res.json(cart)
   } catch (error) {
-    res.status(500).json({ message: error.message })
+    return sendError(res, 'POST /cart', error)
   }
 })
 
@@ -92,7 +93,7 @@ router.put('/:productId', auth, async (req, res) => {
 
     res.json(updatedCart)
   } catch (error) {
-    res.status(500).json({ message: error.message })
+    return sendError(res, 'PUT /cart/:productId', error)
   }
 })
 
@@ -119,7 +120,7 @@ router.delete('/:productId', auth, async (req, res) => {
 
     res.json(updatedCart)
   } catch (error) {
-    res.status(500).json({ message: error.message })
+    return sendError(res, 'DELETE /cart/:productId', error)
   }
 })
 

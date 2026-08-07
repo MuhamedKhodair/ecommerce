@@ -2,6 +2,7 @@ const express = require('express')
 const { body, validationResult } = require('express-validator')
 const prisma = require('../config/prisma')
 const { auth } = require('../middleware/auth')
+const { sendError } = require('../utils/errors')
 
 const router = express.Router()
 
@@ -20,7 +21,7 @@ router.get('/', auth, async (req, res) => {
     })
     res.json(orders.map(parseOrder))
   } catch (error) {
-    res.status(500).json({ message: error.message })
+    return sendError(res, 'GET /orders', error)
   }
 })
 
@@ -34,7 +35,7 @@ router.get('/:id', async (req, res) => {
     }
     res.json(parseOrder(order))
   } catch (error) {
-    res.status(500).json({ message: error.message })
+    return sendError(res, 'GET /orders/:id', error)
   }
 })
 
@@ -55,7 +56,7 @@ router.put('/:id/status', auth, [
     if (error.code === 'P2025') {
       return res.status(404).json({ message: 'Order not found' })
     }
-    res.status(500).json({ message: error.message })
+    return sendError(res, 'PUT /orders/:id/status', error)
   }
 })
 
@@ -113,7 +114,7 @@ router.post('/', [
 
     res.status(201).json(parseOrder(order))
   } catch (error) {
-    res.status(500).json({ message: error.message })
+    return sendError(res, 'POST /orders', error)
   }
 })
 

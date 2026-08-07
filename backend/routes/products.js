@@ -2,6 +2,7 @@ const express = require('express')
 const { body, validationResult } = require('express-validator')
 const prisma = require('../config/prisma')
 const { auth, admin } = require('../middleware/auth')
+const { sendError } = require('../utils/errors')
 
 const router = express.Router()
 
@@ -12,8 +13,8 @@ router.get('/', async (req, res) => {
 
     if (search) {
       where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } },
+        { name: { contains: search } },
+        { description: { contains: search } },
       ]
     }
     if (category) where.category = category
@@ -36,7 +37,7 @@ router.get('/', async (req, res) => {
       pages: Math.ceil(total / parseInt(limit)),
     })
   } catch (error) {
-    res.status(500).json({ message: error.message })
+    return sendError(res, 'GET /products', error)
   }
 })
 
@@ -48,7 +49,7 @@ router.get('/:id', async (req, res) => {
     }
     res.json(product)
   } catch (error) {
-    res.status(500).json({ message: error.message })
+    return sendError(res, 'GET /products/:id', error)
   }
 })
 
@@ -68,7 +69,7 @@ router.post('/', auth, admin, [
     const product = await prisma.product.create({ data: req.body })
     res.status(201).json(product)
   } catch (error) {
-    res.status(400).json({ message: error.message })
+    return sendError(res, 'POST /products', error, 400)
   }
 })
 
@@ -94,7 +95,7 @@ router.put('/:id', auth, admin, [
     if (error.code === 'P2025') {
       return res.status(404).json({ message: 'Product not found' })
     }
-    res.status(400).json({ message: error.message })
+    return sendError(res, 'PUT /products/:id', error, 400)
   }
 })
 
@@ -106,7 +107,7 @@ router.delete('/:id', auth, admin, async (req, res) => {
     if (error.code === 'P2025') {
       return res.status(404).json({ message: 'Product not found' })
     }
-    res.status(500).json({ message: error.message })
+    return sendError(res, 'DELETE /products/:id', error)
   }
 })
 
