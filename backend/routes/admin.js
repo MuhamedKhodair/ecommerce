@@ -1,5 +1,6 @@
 const express = require('express')
 const { body, validationResult } = require('express-validator')
+const bcrypt = require('bcryptjs')
 const prisma = require('../config/prisma')
 const { auth, admin } = require('../middleware/auth')
 const { sendError } = require('../utils/errors')
@@ -83,6 +84,80 @@ router.get('/users/:id', async (req, res) => {
     res.json(user)
   } catch (error) {
     return sendError(res, 'GET /admin/users/:id', error)
+  }
+})
+
+const safeSelect = { id: true, name: true, email: true, role: true, createdAt: true, updatedAt: true }
+
+router.post('/users', [
+  body('name').trim().notEmpty().withMessage('Name is required').isLength({ min: 2, max: 50 }).withMessage('Name must be 2-50 characters'),
+  body('email').trim().isEmail().normalizeEmail().withMessage('Valid email is required'),
+  body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters')
+    .matches(/[A-Z]/).withMessage('Password must contain an uppercase letter')
+    .matches(/[a-z]/).withMessage('Password must contain a lowercase letter')
+    .matches(/[0-9]/).withMessage('Password must contain a number'),
+  body('role').optional().isIn(['user', 'admin']).withMessage('Role must be user or admin'),
+], async (req, res) => {
+  try {
+    const errors = validationResult(req)
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ message: errors.array()[0].msg })
+    }
+
+    const { name, email, password, role } = req.body
+    const existing = await prisma.user.findUnique({ where: { email } })
+    if (existing) return res.status(400).json({ message: 'Email already registered' })
+
+    const hashedPassword = await bcrypt.hash(password, 12)
+    const user = await prisma.user.create({
+      data: { name, email, password: hashedPassword, role: role || 'user' },
+      select: safeSelect,
+    })
+    res.status(201).json(user)
+  } catch (error) {
+    return sendError(res, 'POST /admin/users', error, 400)
+  }
+})
+
+router.put('/users/:id', [
+  body('name').optional().trim().notEmpty().withMessage('Name is required').isLength({ min: 2, max: 50 }).withMessage('Name must be 2-50 characters'),
+  body('email').optional().trim().isEmail().normalizeEmail().withMessage('Valid email is required'),
+  body('role').optional().isIn(['user', 'admin']).withMessage('Role must be user or admin'),
+  body('password').optional().isLength({ min: 8 }).withMessage('Password must be at least 8 characters')
+    .matches(/[A-Z]/).withMessage('Password must contain an uppercase letter')
+    .matches(/[a-z]/).withMessage('Password must contain a lowercase letter')
+    .matches(/[0-9]/).withMessage('Password must contain a number'),
+], async (req, res) => {
+  try {
+    const errors = validationResult(req)
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ message: errors.array()[0].msg })
+    }
+
+    const targetUser = await prisma.user.findUnique({ where: { id: req.params.id } })
+    if (!targetUser) return res.status(404).json({ message: 'User not found' })
+
+    const isSelf = targetUser.id === req.user.id
+    if (isSelf && req.body.role && req.body.role !== targetUser.role) {
+      return res.status(400).json({ message: 'Cannot change your own role' })
+    }
+
+    const data = {}
+    if (req.body.name !== undefined) data.name = req.body.name
+    if (req.body.email !== undefined) data.email = req.body.email
+    if (req.body.role !== undefined) data.role = req.body.role
+    if (req.body.password) data.password = await bcrypt.hash(req.body.password, 12)
+
+    const user = await prisma.user.update({
+      where: { id: req.params.id },
+      data,
+      select: safeSelect,
+    })
+    res.json(user)
+  } catch (error) {
+    if (error.code === 'P2002') return res.status(400).json({ message: 'Email already registered' })
+    if (error.code === 'P2025') return res.status(404).json({ message: 'User not found' })
+    return sendError(res, 'PUT /admin/users/:id', error, 400)
   }
 })
 
