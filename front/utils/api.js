@@ -38,6 +38,8 @@ export const api = {
     return request(`/api/admin/users${query ? `?${query}` : ''}`)
   },
   updateUserRole: (id, role) => request(`/api/admin/users/${id}/role`, { method: 'PUT', body: JSON.stringify({ role }) }),
+  createUser: data => request('/api/admin/users', { method: 'POST', body: JSON.stringify(data) }),
+  updateUser: (id, data) => request(`/api/admin/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteUser: id => request(`/api/admin/users/${id}`, { method: 'DELETE' }),
   getAdminOrders: (params = {}) => {
     const query = new URLSearchParams(params).toString()
