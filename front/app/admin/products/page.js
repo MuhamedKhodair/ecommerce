@@ -11,6 +11,7 @@ export default function AdminProducts() {
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState({ name: '', description: '', price: '', categoryId: '', stock: '', image: '' })
   const [error, setError] = useState('')
+  const [formError, setFormError] = useState('')
   const [search, setSearch] = useState('')
   const [uploading, setUploading] = useState(false)
   const [categories, setCategories] = useState([])
@@ -45,6 +46,7 @@ export default function AdminProducts() {
     setEditing(null)
     setShowForm(false)
     setError('')
+    setFormError('')
     setUploading(false)
   }
 
@@ -64,11 +66,13 @@ export default function AdminProducts() {
     )
     setEditing(product.id)
     setShowForm(true)
+    setFormError('')
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+    setFormError('')
     try {
       const payload = {
         ...form,
@@ -83,7 +87,7 @@ export default function AdminProducts() {
       resetForm()
       loadProducts()
     } catch (e) {
-      setError(e.message)
+      setFormError(e.message)
     }
   }
 
@@ -100,13 +104,13 @@ export default function AdminProducts() {
   const handleFile = async (e) => {
     const file = e.target.files[0]
     if (!file) return
-    setError('')
+    setFormError('')
     setUploading(true)
     try {
       const { url } = await api.uploadImage(file)
       setForm(f => ({ ...f, image: url }))
     } catch (err) {
-      setError(err.message)
+      setFormError(err.message)
     } finally {
       setUploading(false)
     }
@@ -143,6 +147,9 @@ export default function AdminProducts() {
           <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
             <h2 className="text-lg font-semibold text-gray-900">{editing ? 'Edit Product' : 'Add Product'}</h2>
             <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+              {formError && (
+                <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{formError}</div>
+              )}
               <input className="input-field" placeholder="Name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
               <textarea className="input-field" placeholder="Description" rows={3} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} required />
               <div className="grid grid-cols-2 gap-4">
