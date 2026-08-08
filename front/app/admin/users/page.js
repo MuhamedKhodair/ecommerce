@@ -13,6 +13,7 @@ export default function AdminUsers() {
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState(emptyForm)
+  const [formError, setFormError] = useState('')
   const [saving, setSaving] = useState(false)
 
   const loadUsers = async () => {
@@ -34,6 +35,7 @@ export default function AdminUsers() {
     setEditing(null)
     setShowForm(false)
     setError('')
+    setFormError('')
     setSaving(false)
   }
 
@@ -41,17 +43,20 @@ export default function AdminUsers() {
     setForm(emptyForm)
     setEditing(null)
     setShowForm(true)
+    setFormError('')
   }
 
   const openEdit = (user) => {
     setForm({ name: user.name, email: user.email, password: '', role: user.role })
     setEditing(user.id)
     setShowForm(true)
+    setFormError('')
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+    setFormError('')
     setSaving(true)
     try {
       const payload = { ...form }
@@ -64,7 +69,7 @@ export default function AdminUsers() {
       resetForm()
       loadUsers()
     } catch (err) {
-      setError(err.message)
+      setFormError(err.message)
     } finally {
       setSaving(false)
     }
@@ -118,6 +123,9 @@ export default function AdminUsers() {
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
             <h2 className="text-lg font-semibold text-gray-900">{editing ? 'Edit User' : 'Add User'}</h2>
             <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+              {formError && (
+                <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{formError}</div>
+              )}
               <input className="input-field" placeholder="Name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
               <input className="input-field" type="email" placeholder="Email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required />
               <input
