@@ -16,7 +16,7 @@ export default function ProductDetail() {
   useEffect(() => {
     if (!id) return
     setLoading(true)
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/products/${id}`)
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/products/${id}`)
       .then(res => res.json())
       .then(data => {
         setProduct(data)

@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { api } from '@/utils/api'
-import Image from 'next/image'
 
 export default function AdminProducts() {
   const [products, setProducts] = useState([])
@@ -229,7 +228,10 @@ export default function AdminProducts() {
                 <tr key={product.id} className="hover:bg-gray-50">
                   <td className="flex items-center gap-3 px-4 py-3">
                     <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-gray-100">
-                      <Image src={product.image || '/placeholder.png'} alt="" fill className="object-cover" />
+                      {product.image && (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img src={product.image} alt="" className="h-full w-full object-cover" />
+                      )}
                     </div>
                     <span className="font-medium text-gray-900">{product.name}</span>
                   </td>
