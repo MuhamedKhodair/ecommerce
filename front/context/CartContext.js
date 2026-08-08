@@ -1,11 +1,23 @@
 'use client'
 
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect, useRef } from 'react'
+import { useAuth } from './AuthContext'
 
 const CartContext = createContext()
 
 export function CartProvider({ children }) {
+  const { user } = useAuth()
   const [cart, setCart] = useState([])
+  const prevUserRef = useRef(null)
+
+  useEffect(() => {
+    const wasLoggedIn = prevUserRef.current
+    prevUserRef.current = user
+    if (wasLoggedIn && !user) {
+      setCart([])
+      localStorage.removeItem('cart')
+    }
+  }, [user])
 
   useEffect(() => {
     try {
