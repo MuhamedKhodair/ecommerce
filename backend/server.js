@@ -37,6 +37,7 @@ app.use((req, res, next) => {
 })
 
 app.use('/uploads', (req, res, next) => {
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin')
   res.setHeader('X-Content-Type-Options', 'nosniff')
   res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
   next()
