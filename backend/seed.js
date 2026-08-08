@@ -25,8 +25,22 @@ const products = [
 async function seed() {
   try {
     await prisma.product.deleteMany()
-    await prisma.product.createMany({ data: products })
-    console.log(`Seeded ${products.length} products`)
+
+    const categoryNames = [...new Set(products.map(p => p.category))]
+    const categoryIds = {}
+    for (const name of categoryNames) {
+      const cat = await prisma.category.upsert({
+        where: { name },
+        update: {},
+        create: { name },
+      })
+      categoryIds[name] = cat.id
+    }
+
+    await prisma.product.createMany({
+      data: products.map(({ category, ...rest }) => ({ ...rest, categoryId: categoryIds[category] })),
+    })
+    console.log(`Seeded ${products.length} products across ${categoryNames.length} categories`)
 
     const existingAdmin = await prisma.user.findUnique({ where: { email: 'admin@shopnext.com' } })
     if (!existingAdmin) {

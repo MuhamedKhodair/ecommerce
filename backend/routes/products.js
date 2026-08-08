@@ -4,6 +4,7 @@ const prisma = require('../config/prisma')
 const { auth, admin } = require('../middleware/auth')
 const { sendError } = require('../utils/errors')
 const { isUploadedImage, deleteUploadedImage } = require('../utils/uploads')
+const { serializeProduct } = require('../utils/serialize')
 
 const router = express.Router()
 
@@ -20,7 +21,7 @@ router.get('/', async (req, res) => {
         { description: { contains: search } },
       ]
     }
-    if (category) where.category = category
+    if (category) where.category = { is: { name: category } }
 
     const skip = (parseInt(page) - 1) * parseInt(limit)
     const [products, total] = await Promise.all([
@@ -29,12 +30,13 @@ router.get('/', async (req, res) => {
         skip,
         take: Math.min(parseInt(limit), 100),
         orderBy: { createdAt: 'desc' },
+        include: { category: true },
       }),
       prisma.product.count({ where }),
     ])
 
     res.json({
-      products,
+      products: products.map(serializeProduct),
       total,
       page: parseInt(page),
       pages: Math.ceil(total / parseInt(limit)),
@@ -46,11 +48,14 @@ router.get('/', async (req, res) => {
 
 router.get('/:id', async (req, res) => {
   try {
-    const product = await prisma.product.findUnique({ where: { id: req.params.id } })
+    const product = await prisma.product.findUnique({
+      where: { id: req.params.id },
+      include: { category: true },
+    })
     if (!product) {
       return res.status(404).json({ message: 'Product not found' })
     }
-    res.json(product)
+    res.json(serializeProduct(product))
   } catch (error) {
     return sendError(res, 'GET /products/:id', error)
   }
@@ -60,7 +65,7 @@ router.post('/', auth, admin, [
   body('name').trim().notEmpty().withMessage('Name is required').isLength({ max: 200 }),
   body('description').trim().notEmpty().withMessage('Description is required'),
   body('price').isFloat({ min: 0.01 }).withMessage('Price must be greater than 0'),
-  body('category').trim().notEmpty().withMessage('Category is required'),
+  body('categoryId').notEmpty().withMessage('Category is required'),
   body('stock').optional().isInt({ min: 0 }).withMessage('Stock must be a non-negative integer'),
   body('image').optional().trim().custom(isValidImage).withMessage('Image must be a valid URL or upload'),
 ], async (req, res) => {
@@ -69,8 +74,13 @@ router.post('/', auth, admin, [
     if (!errors.isEmpty()) {
       return res.status(400).json({ message: errors.array()[0].msg })
     }
-    const product = await prisma.product.create({ data: req.body })
-    res.status(201).json(product)
+    const category = await prisma.category.findUnique({ where: { id: req.body.categoryId } })
+    if (!category) {
+      return res.status(400).json({ message: 'Category not found' })
+    }
+    const { categoryId, ...data } = req.body
+    const product = await prisma.product.create({ data: { ...data, categoryId }, include: { category: true } })
+    res.status(201).json(serializeProduct(product))
   } catch (error) {
     return sendError(res, 'POST /products', error, 400)
   }
@@ -80,7 +90,7 @@ router.put('/:id', auth, admin, [
   body('name').optional().trim().notEmpty().isLength({ max: 200 }),
   body('description').optional().trim().notEmpty(),
   body('price').optional().isFloat({ min: 0.01 }),
-  body('category').optional().trim().notEmpty(),
+  body('categoryId').optional().notEmpty().withMessage('Category is required'),
   body('stock').optional().isInt({ min: 0 }),
   body('image').optional().trim().custom(isValidImage).withMessage('Image must be a valid URL or upload'),
 ], async (req, res) => {
@@ -93,14 +103,22 @@ router.put('/:id', auth, admin, [
     if (!current) {
       return res.status(404).json({ message: 'Product not found' })
     }
+    if (req.body.categoryId) {
+      const category = await prisma.category.findUnique({ where: { id: req.body.categoryId } })
+      if (!category) {
+        return res.status(400).json({ message: 'Category not found' })
+      }
+    }
+    const { categoryId, ...data } = req.body
     const product = await prisma.product.update({
       where: { id: req.params.id },
-      data: req.body,
+      data: { ...data, ...(categoryId ? { categoryId } : {}) },
+      include: { category: true },
     })
     if (req.body.image && req.body.image !== current.image) {
       deleteUploadedImage(current.image)
     }
-    res.json(product)
+    res.json(serializeProduct(product))
   } catch (error) {
     if (error.code === 'P2025') {
       return res.status(404).json({ message: 'Product not found' })
