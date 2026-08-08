@@ -9,7 +9,7 @@ export default function AdminProducts() {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState(null)
-  const [form, setForm] = useState({ name: '', description: '', price: '', category: '', stock: '', image: '' })
+  const [form, setForm] = useState({ name: '', description: '', price: '', categoryId: '', stock: '', image: '' })
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
   const [uploading, setUploading] = useState(false)
@@ -41,7 +41,7 @@ export default function AdminProducts() {
   useEffect(() => { loadProducts() }, [search])
 
   const resetForm = () => {
-    setForm({ name: '', description: '', price: '', category: '', stock: '', image: '' })
+    setForm({ name: '', description: '', price: '', categoryId: '', stock: '', image: '' })
     setEditing(null)
     setShowForm(false)
     setError('')
@@ -53,10 +53,15 @@ export default function AdminProducts() {
       name: product.name,
       description: product.description,
       price: String(product.price),
-      category: product.category,
+      categoryId: product.categoryId || '',
       stock: String(product.stock),
       image: product.image || '',
     })
+    setCategories(prev =>
+      prev.some(c => c.id === product.categoryId)
+        ? prev
+        : [...prev, { id: product.categoryId, name: product.category }]
+    )
     setEditing(product.id)
     setShowForm(true)
   }
@@ -107,7 +112,7 @@ export default function AdminProducts() {
     }
   }
 
-  const categoryOptions = Array.from(new Set([...categories, form.category].filter(Boolean)))
+  const categoryOptions = categories.filter(c => c && c.id)
 
   return (
     <div>
@@ -144,20 +149,20 @@ export default function AdminProducts() {
                 <input className="input-field" type="number" step="0.01" min="0.01" placeholder="Price" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} required />
                 <input className="input-field" type="number" min="0" placeholder="Stock" value={form.stock} onChange={e => setForm({ ...form, stock: e.target.value })} />
               </div>
-              {categories.length > 0 ? (
+              {categoryOptions.length > 0 ? (
                 <select
                   className="input-field"
-                  value={form.category}
-                  onChange={e => setForm({ ...form, category: e.target.value })}
+                  value={form.categoryId}
+                  onChange={e => setForm({ ...form, categoryId: e.target.value })}
                   required
                 >
                   <option value="" disabled>Select a category</option>
                   {categoryOptions.map(c => (
-                    <option key={c} value={c}>{c}</option>
+                    <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </select>
               ) : (
-                <input className="input-field" placeholder="Category" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} required />
+                <input className="input-field" placeholder="Category" value={form.categoryId} onChange={e => setForm({ ...form, categoryId: e.target.value })} required />
               )}
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-gray-700">Product Image</label>

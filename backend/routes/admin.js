@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs')
 const prisma = require('../config/prisma')
 const { auth, admin } = require('../middleware/auth')
 const { sendError } = require('../utils/errors')
+const { serializeProduct } = require('../utils/serialize')
 
 const router = express.Router()
 
@@ -24,6 +25,7 @@ router.get('/stats', async (req, res) => {
       prisma.product.findMany({
         where: { stock: { lte: 5 } },
         orderBy: { stock: 'asc' },
+        include: { category: true },
       }),
     ])
 
@@ -40,7 +42,7 @@ router.get('/stats', async (req, res) => {
       totalOrders,
       totalRevenue: totalRevenue._sum.totalAmount || 0,
       recentOrders: parsedOrders,
-      lowStockProducts,
+      lowStockProducts: lowStockProducts.map(serializeProduct),
     })
   } catch (error) {
     return sendError(res, 'GET /admin/stats', error)
@@ -260,16 +262,16 @@ router.get('/products', async (req, res) => {
         { description: { contains: search } },
       ]
     }
-    if (category) where.category = category
+    if (category) where.category = { is: { name: category } }
     if (stockFilter === 'low') where.stock = { lte: 5 }
     if (stockFilter === 'out') where.stock = 0
 
     const skip = (parseInt(page) - 1) * parseInt(limit)
     const [products, total] = await Promise.all([
-      prisma.product.findMany({ where, skip, take: parseInt(limit), orderBy: { createdAt: 'desc' } }),
+      prisma.product.findMany({ where, skip, take: parseInt(limit), orderBy: { createdAt: 'desc' }, include: { category: true } }),
       prisma.product.count({ where }),
     ])
-    res.json({ products, total, page: parseInt(page), pages: Math.ceil(total / parseInt(limit)) })
+    res.json({ products: products.map(serializeProduct), total, page: parseInt(page), pages: Math.ceil(total / parseInt(limit)) })
   } catch (error) {
     return sendError(res, 'GET /admin/products', error)
   }
@@ -277,11 +279,10 @@ router.get('/products', async (req, res) => {
 
 router.get('/categories', async (req, res) => {
   try {
-    const products = await prisma.product.findMany({
-      select: { category: true },
-      distinct: ['category'],
+    const categories = await prisma.category.findMany({
+      orderBy: { name: 'asc' },
     })
-    res.json(products.map(p => p.category))
+    res.json(categories.map(c => ({ id: c.id, name: c.name })))
   } catch (error) {
     return sendError(res, 'GET /admin/categories', error)
   }
