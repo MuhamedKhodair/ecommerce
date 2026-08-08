@@ -5,6 +5,7 @@ const { body, validationResult } = require('express-validator')
 const rateLimit = require('express-rate-limit')
 const prisma = require('../config/prisma')
 const { auth } = require('../middleware/auth')
+const { sendMail } = require('../utils/mailer')
 
 const router = express.Router()
 
@@ -94,6 +95,26 @@ router.post('/login', loginLimiter, [
 
     const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' })
     setTokenCookie(res, token)
+
+    const notifyEmail = process.env.NOTIFY_EMAIL
+    if (notifyEmail) {
+      const ip = req.ip || req.socket.remoteAddress
+      const time = new Date().toLocaleString('en-GB', { timeZone: 'UTC' })
+      sendMail({
+        to: notifyEmail,
+        subject: 'New login to ShopNext',
+        html: `
+          <p>A user just logged into ShopNext.</p>
+          <ul>
+            <li><strong>Name:</strong> ${user.name}</li>
+            <li><strong>Email:</strong> ${user.email}</li>
+            <li><strong>Role:</strong> ${user.role}</li>
+            <li><strong>IP:</strong> ${ip}</li>
+            <li><strong>Time (UTC):</strong> ${time}</li>
+          </ul>
+        `,
+      })
+    }
 
     res.json({
       user: { id: user.id, name: user.name, email: user.email, role: user.role },
