@@ -66,7 +66,8 @@ router.post('/', auth, admin, (req, res) => {
     const filename = crypto.randomUUID() + format.ext
     fs.writeFileSync(path.join(UPLOAD_DIR, filename), req.file.buffer)
 
-    const url = `${req.protocol}://${req.get('host')}/uploads/${filename}`
+    const host = req.get('x-forwarded-host') || req.get('host')
+    const url = `${req.protocol}://${host}/uploads/${filename}`
     res.status(201).json({ url })
   })
 })

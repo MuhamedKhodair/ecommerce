@@ -27,7 +27,7 @@ function ProductsContent() {
     if (search) params.set('search', search)
     if (category) params.set('category', category)
 
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/products?${params}`)
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/products?${params}`)
       .then(res => res.json())
       .then(data => {
         setProducts(data.products || data)
